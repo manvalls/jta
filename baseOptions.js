@@ -1,6 +1,5 @@
 const path = require('path');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
-const HTMLWebpackPlugin = require('html-webpack-plugin');
 const CompressionPlugin = require("compression-webpack-plugin");
 
 module.exports = (p) => {
@@ -12,9 +11,6 @@ module.exports = (p) => {
     devtool: 'source-map',
     plugins: [
       new CleanWebpackPlugin(['dist'], {root: p, verbose: false}),
-      new HTMLWebpackPlugin({
-        title: ''
-      }),
       new CompressionPlugin({
         asset: "[path].gz",
         algorithm: "gzip",
@@ -30,19 +26,6 @@ module.exports = (p) => {
     },
     module: {
       rules: [
-        {
-          test: /\.jsx?$/,
-          exclude: /(node_modules|bower_components)/,
-          use: {
-            loader: 'babel-loader',
-            options: {
-              plugins: [require('babel-plugin-syntax-dynamic-import')],
-              presets: [require('babel-preset-nite')],
-              cacheDirectory: true,
-              cacheIdentifier: 'jta-base'
-            }
-          }
-        },
         {
           test(filename){
             var ext = (filename.match(/\.[^\.]*$/) || [])[0];
@@ -131,6 +114,54 @@ module.exports = (p) => {
               }
             }
           ]
+        },
+        {
+          test: /\.ww\.js$/,
+          use: [
+            {
+              loader: 'worker-loader',
+              options: {
+                name: '[hash].ww.js'
+              }
+            }
+          ]
+        },
+        {
+          test: /\.sw\.js$/,
+          use: [
+            {
+              loader: 'worker-loader',
+              options: {
+                name: '[name].js',
+                // mode: 'service'
+              }
+            }
+          ]
+        },
+        {
+          test: /\.sww\.js$/,
+          use: [
+            {
+              loader: 'worker-loader',
+              options: {
+                name: '[hash].sww.js',
+                // mode: 'shared'
+              }
+            }
+          ]
+        },
+        {
+          test: /\.jsx?$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              plugins: [require('babel-plugin-syntax-dynamic-import')],
+              presets: [require('babel-preset-nite')],
+              cacheDirectory: true,
+              cacheIdentifier: 'jta-base'
+            }
+          }
         }
       ]
     }
