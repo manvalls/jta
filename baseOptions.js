@@ -46,10 +46,7 @@ module.exports = (p) => {
           },
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',
@@ -69,10 +66,7 @@ module.exports = (p) => {
           },
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',
@@ -102,10 +96,7 @@ module.exports = (p) => {
           },
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',
@@ -130,10 +121,7 @@ module.exports = (p) => {
           test: /\.global\.css$/,
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',
@@ -148,10 +136,7 @@ module.exports = (p) => {
           test: /\.global\.less$/,
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',
@@ -176,10 +161,7 @@ module.exports = (p) => {
           test: /\.global\.(scss|sass)$/,
           use: [
             {
-              loader: 'style-loader',
-              options: {
-                singleton: true
-              }
+              loader: 'style-loader'
             },
             {
               loader: 'css-loader',

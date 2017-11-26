@@ -58,13 +58,6 @@ module.exports = {
       es5.entry.index
     ];
 
-    const babelRule = es5.module.rules[es5.module.rules.length - 1];
-
-    delete babelRule.exclude;
-    babelRule.use.options.presets.push( require('babel-preset-env') );
-    babelRule.use.options.cacheIdentifier = 'jta-es5';
-    babelRule.use.options.compact = false;
-
     for(const rule of es5.module.rules.slice(-4, -1)){
       rule.use.push({
         loader: 'text-transform-loader',
@@ -74,24 +67,46 @@ module.exports = {
       });
     }
 
-    for(const opt of [es5, es6]) opt.plugins.push(
-      new CleanWebpackPlugin(['dist'], {root: path, verbose: false}),
-      new CompressionPlugin({
-        asset: "[path].gz",
-        algorithm: "gzip",
-        test: /./,
-        minRatio: 0.8
-      }),
-      new UglifyJsPlugin({
-        sourceMap: true,
-        uglifyOptions: {
-          ecma: opt == es5 ? 5 : 8
+    es5.module.rules.splice(-1, 0, {
+      test: /\.jsx?$/,
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: [require('babel-preset-env')],
+          cacheDirectory: true,
+          cacheIdentifier: 'jta-es5',
+          compact: false
         }
-      }),
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      })
-    );
+      }
+    });
+
+    for(const opt of [es5, es6]){
+      opt.plugins.push(
+        new CleanWebpackPlugin(['dist'], {root: path, verbose: false}),
+        new CompressionPlugin({
+          asset: "[path].gz",
+          algorithm: "gzip",
+          test: /./,
+          minRatio: 0.8
+        }),
+        new UglifyJsPlugin({
+          sourceMap: true,
+          uglifyOptions: {
+            ecma: opt == es5 ? 5 : 8
+          }
+        }),
+        new webpack.DefinePlugin({
+          'process.env.NODE_ENV': JSON.stringify('production')
+        })
+      );
+
+      for(const rule of opt.module.rules){
+        if(rule.use instanceof Array) for(const u of rule.use){
+          if(u.loader == 'css-loader') u.options.sourceMap = false;
+        }
+      }
+
+    }
 
     es5.plugins.push(
       new webpack.ProvidePlugin({
