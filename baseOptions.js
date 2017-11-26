@@ -39,10 +39,17 @@ module.exports = (p) => {
           ]
         },
         {
-          test: /\.css$/,
+          test(filename){
+            if(!filename.match(/\.css$/)) return false;
+            if(filename.match(/\.global\.css$/)) return false;
+            return true;
+          },
           use: [
             {
-              loader: 'style-loader'
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
             },
             {
               loader: 'css-loader',
@@ -55,10 +62,17 @@ module.exports = (p) => {
           ]
         },
         {
-          test: /\.less$/,
+          test(filename){
+            if(!filename.match(/\.less$/)) return false;
+            if(filename.match(/\.global\.less$/)) return false;
+            return true;
+          },
           use: [
             {
-              loader: 'style-loader'
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
             },
             {
               loader: 'css-loader',
@@ -81,15 +95,95 @@ module.exports = (p) => {
           ]
         },
         {
-          test: /\.(scss|sass)$/,
+          test(filename){
+            if(!filename.match(/\.(scss|sass)$/)) return false;
+            if(filename.match(/\.global\.(scss|sass)$/)) return false;
+            return true;
+          },
           use: [
             {
-              loader: 'style-loader'
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
             },
             {
               loader: 'css-loader',
               options: {
                 modules: true,
+                minimize: true,
+                sourceMap: true
+              }
+            },
+            {
+              loader: 'resolve-url-loader'
+            },
+            {
+              loader: "sass-loader",
+              options: {
+                sourceMap: true
+              }
+            }
+          ]
+        },
+        {
+          test: /\.global\.css$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
+            },
+            {
+              loader: 'css-loader',
+              options: {
+                minimize: true,
+                sourceMap: true
+              }
+            }
+          ]
+        },
+        {
+          test: /\.global\.less$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
+            },
+            {
+              loader: 'css-loader',
+              options: {
+                minimize: true,
+                sourceMap: true
+              }
+            },
+            {
+              loader: 'resolve-url-loader'
+            },
+            {
+              loader: "less-loader",
+              options: {
+                sourceMap: true,
+                relativeUrls: false
+              }
+            }
+          ]
+        },
+        {
+          test: /\.global\.(scss|sass)$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                singleton: true
+              }
+            },
+            {
+              loader: 'css-loader',
+              options: {
                 minimize: true,
                 sourceMap: true
               }
@@ -150,7 +244,7 @@ module.exports = (p) => {
                 require('babel-plugin-syntax-dynamic-import'),
                 require('babel-plugin-transform-es2015-modules-commonjs')
               ],
-              presets: [require('babel-preset-nite')],
+              presets: [],
               cacheDirectory: true,
               cacheIdentifier: 'jta-base'
             }

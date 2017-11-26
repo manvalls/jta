@@ -25,6 +25,7 @@ module.exports = {
     const server = new WebpackDevServer(compiler, {
       hot: true,
       contentBase: p.resolve(__dirname, 'public'),
+      historyApiFallback: true,
       stats: {
         cached: false,
         cachedAssets: false,
@@ -127,6 +128,7 @@ module.exports = {
         <html>
           <head>
             <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
           </head>
           <body>
             <script type="text/javascript">
