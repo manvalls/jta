@@ -1,7 +1,43 @@
 
 module.exports = {
 
-  serve: (path) => {},
+  serve: (path, port = 80, cb = () => {}) => {
+    const WebpackDevServer = require('webpack-dev-server');
+    const webpack = require("webpack");
+    const p = require('path');
+    const opt = require('./baseOptions')(path);
+
+    opt.output.filename = '[name].js';
+
+    opt.entry.index = [
+      `${require.resolve('webpack-dev-server/client')}?http://localhost:${port}`,
+      require.resolve('webpack/hot/dev-server'),
+      opt.entry.index
+    ];
+
+    opt.plugins.unshift(
+      new webpack.HotModuleReplacementPlugin(),
+      new webpack.NamedModulesPlugin()
+    );
+
+    const compiler = webpack(opt);
+
+    const server = new WebpackDevServer(compiler, {
+      hot: true,
+      contentBase: p.resolve(__dirname, 'public'),
+      stats: {
+        cached: false,
+        cachedAssets: false,
+        colors: true
+      }
+    });
+
+    server.listen(port, 'localhost', (err) => {
+      console.log(`Server ready at localhost:${port}`);
+      cb(err, server);
+    });
+
+  },
 
   build: (path) => {
     const p = require('path');
@@ -10,6 +46,8 @@ module.exports = {
     const webpack = require("webpack");
     const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
     const ProgressPlugin = require('progress-webpack-plugin');
+    const CleanWebpackPlugin = require('clean-webpack-plugin');
+    const CompressionPlugin = require("compression-webpack-plugin");
 
     const es6 = require('./baseOptions')(path);
     const es5 = require('./baseOptions')(path);
@@ -36,6 +74,13 @@ module.exports = {
     }
 
     for(const opt of [es5, es6]) opt.plugins.push(
+      new CleanWebpackPlugin(['dist'], {root: path, verbose: false}),
+      new CompressionPlugin({
+        asset: "[path].gz",
+        algorithm: "gzip",
+        test: /./,
+        minRatio: 0.8
+      }),
       new UglifyJsPlugin({
         sourceMap: true,
         uglifyOptions: {

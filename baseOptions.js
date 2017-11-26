@@ -1,6 +1,4 @@
 const path = require('path');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
-const CompressionPlugin = require("compression-webpack-plugin");
 
 module.exports = (p) => {
   return {
@@ -9,15 +7,7 @@ module.exports = (p) => {
       index: require.resolve(p)
     },
     devtool: 'source-map',
-    plugins: [
-      new CleanWebpackPlugin(['dist'], {root: p, verbose: false}),
-      new CompressionPlugin({
-        asset: "[path].gz",
-        algorithm: "gzip",
-        test: /./,
-        minRatio: 0.8
-      })
-    ],
+    plugins: [],
     output: {
       filename: '[hash].js',
       chunkFilename: '[chunkhash].js',
@@ -156,7 +146,10 @@ module.exports = (p) => {
           use: {
             loader: 'babel-loader',
             options: {
-              plugins: [require('babel-plugin-syntax-dynamic-import')],
+              plugins: [
+                require('babel-plugin-syntax-dynamic-import'),
+                require('babel-plugin-transform-es2015-modules-commonjs')
+              ],
               presets: [require('babel-preset-nite')],
               cacheDirectory: true,
               cacheIdentifier: 'jta-base'
