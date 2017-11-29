@@ -1,22 +1,86 @@
 const path = require('path');
 
-module.exports = (p) => {
+module.exports = (p, production, es5, port) => {
+  const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+  const CleanWebpackPlugin = require('clean-webpack-plugin');
+  const CompressionPlugin = require("compression-webpack-plugin");
+  const ExtractTextPlugin = require("extract-text-webpack-plugin");
+  const webpack = require('webpack');
+
   return {
     context: __dirname,
     entry: {
-      index: require.resolve(p)
+      index: (() => {
+        const entry = [require.resolve(p)];
+
+        if(!production) entry.unshift(
+          `${require.resolve('webpack-dev-server/client')}?http://localhost:${port}`,
+          require.resolve('webpack/hot/dev-server')
+        );
+
+        if(es5) entry.unshift( require.resolve('babel-polyfill') );
+
+        return entry;
+      })()
     },
-    devtool: 'source-map',
-    plugins: [],
+    devtool: production ? false : 'source-map',
+    plugins: (() => {
+      const definitions = {};
+      let plugins = [];
+
+      for(const [key,value] of Object.entries(process.env)){
+        definitions[`process.env.${key}`] = value;
+      }
+
+      if(production) definitions['process.env.NODE_ENV'] = 'production';
+
+      for(const key of Object.keys(definitions)){
+        definitions[key] = JSON.stringify(definitions[key]);
+      }
+
+      plugins.push( new webpack.DefinePlugin(definitions) );
+
+      if(es5) plugins.push( new webpack.ProvidePlugin({
+        'fetch': require.resolve('whatwg-fetch')
+      }) );
+
+      if(production){
+        plugins = plugins.concat([
+          new CleanWebpackPlugin(['dist'], {root: p, verbose: false}),
+          new CompressionPlugin({
+            asset: "[path].gz",
+            algorithm: "gzip",
+            test: /./,
+            minRatio: 0.8
+          }),
+          new UglifyJsPlugin({
+            sourceMap: true,
+            uglifyOptions: {
+              ecma: es5 ? 5 : 8
+            }
+          }),
+          new ExtractTextPlugin('[contenthash].css')
+        ]);
+      }else{
+        plugins = plugins.concat([
+          new webpack.HotModuleReplacementPlugin(),
+          new webpack.NamedModulesPlugin()
+        ])
+      }
+
+      return plugins;
+    })(),
     output: {
-      filename: '[hash].js',
+      filename: production ? '[hash].js' : '[name].js',
       chunkFilename: '[chunkhash].js',
       sourceMapFilename: '[file].map',
       path: path.resolve(p, 'dist')
     },
     module: {
-      rules: [
-        {
+      rules: (() => {
+        const rules = [];
+
+        rules.push({
           test(filename){
             var ext = (filename.match(/\.[^\.]*$/) || [])[0];
             switch(ext){
@@ -37,186 +101,99 @@ module.exports = (p) => {
               loader: 'file-loader'
             }
           ]
-        },
-        {
-          test(filename){
-            if(!filename.match(/\.css$/)) return false;
-            if(filename.match(/\.global\.css$/)) return false;
-            return true;
-          },
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
+        });
+
+        const styles = [
+          [/\.css$/, /\.global\.css$/],
+          [/\.less$/, /\.global\.less$/, {
+            loader: "less-loader",
+            options: {
+              sourceMap: production ? false : true,
+              relativeUrls: false
+            }
+          }],
+          [/\.(scss|sass)$/, /\.global\.(scss|sass)$/, {
+            loader: "sass-loader",
+            options: {
+              sourceMap: production ? false : true
+            }
+          }]
+        ];
+
+        for(const [localRE, globalRE, ...loaders] of styles){
+          for(const useModules of [true, false]){
+            let use = [{
               loader: 'css-loader',
               options: {
-                modules: true,
+                modules: useModules,
                 minimize: true,
-                sourceMap: true
+                sourceMap: production ? false : true
               }
+            }];
+
+            if(loaders.length){
+              use = use.concat([ { loader: 'resolve-url-loader' }, ...loaders ]);
             }
-          ]
-        },
-        {
-          test(filename){
-            if(!filename.match(/\.less$/)) return false;
-            if(filename.match(/\.global\.less$/)) return false;
-            return true;
-          },
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
-              loader: 'css-loader',
-              options: {
-                modules: true,
-                minimize: true,
-                sourceMap: true
-              }
-            },
-            {
-              loader: 'resolve-url-loader'
-            },
-            {
-              loader: "less-loader",
-              options: {
-                sourceMap: true,
-                relativeUrls: false
-              }
+
+            if(production){
+              use = ExtractTextPlugin.extract({ use, fallback: 'style-loader' });
+            }else{
+              use = [{loader: 'style-loader'}].concat(use);
             }
-          ]
-        },
-        {
-          test(filename){
-            if(!filename.match(/\.(scss|sass)$/)) return false;
-            if(filename.match(/\.global\.(scss|sass)$/)) return false;
-            return true;
-          },
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
-              loader: 'css-loader',
-              options: {
-                modules: true,
-                minimize: true,
-                sourceMap: true
-              }
-            },
-            {
-              loader: 'resolve-url-loader'
-            },
-            {
-              loader: "sass-loader",
-              options: {
-                sourceMap: true
-              }
+
+            if(useModules){
+              rules.push({
+                test(filename){
+                  return !!(filename.match(localRE) && !filename.match(globalRE));
+                },
+                use
+              });
+            }else{
+              rules.push({
+                test: globalRE,
+                use
+              });
             }
-          ]
-        },
-        {
-          test: /\.global\.css$/,
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
-              loader: 'css-loader',
-              options: {
-                minimize: true,
-                sourceMap: true
-              }
+          }
+        }
+
+        const workers = [
+          [/\.ww\.js$/, '[hash].ww.js'],
+          [/\.sw\.js$/, '[name].js', 'service'],
+          [/\.sww\.js$/, '[hash].sww.js', 'shared']
+        ];
+
+        for(const [test, name, mode] of workers){
+          const options = {name};
+          const use = [];
+
+          // if(mode) options.mode = mode;
+          use.push({loader: 'worker-loader', options});
+
+          if(es5) use.push({
+            loader: 'text-transform-loader',
+            options: {
+              prependText: `require(${JSON.stringify(require.resolve('babel-polyfill'))});\n\n`,
             }
-          ]
-        },
-        {
-          test: /\.global\.less$/,
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
-              loader: 'css-loader',
-              options: {
-                minimize: true,
-                sourceMap: true
-              }
-            },
-            {
-              loader: 'resolve-url-loader'
-            },
-            {
-              loader: "less-loader",
-              options: {
-                sourceMap: true,
-                relativeUrls: false
-              }
+          });
+
+          rules.push({test, use});
+        }
+
+        if(es5) rules.push({
+          test: /\.jsx?$/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: [require('babel-preset-env')],
+              cacheDirectory: true,
+              cacheIdentifier: 'jta-es5',
+              compact: false
             }
-          ]
-        },
-        {
-          test: /\.global\.(scss|sass)$/,
-          use: [
-            {
-              loader: 'style-loader'
-            },
-            {
-              loader: 'css-loader',
-              options: {
-                minimize: true,
-                sourceMap: true
-              }
-            },
-            {
-              loader: 'resolve-url-loader'
-            },
-            {
-              loader: "sass-loader",
-              options: {
-                sourceMap: true
-              }
-            }
-          ]
-        },
-        {
-          test: /\.ww\.js$/,
-          use: [
-            {
-              loader: 'worker-loader',
-              options: {
-                name: '[hash].ww.js'
-              }
-            }
-          ]
-        },
-        {
-          test: /\.sw\.js$/,
-          use: [
-            {
-              loader: 'worker-loader',
-              options: {
-                name: '[name].js',
-                // mode: 'service'
-              }
-            }
-          ]
-        },
-        {
-          test: /\.sww\.js$/,
-          use: [
-            {
-              loader: 'worker-loader',
-              options: {
-                name: '[hash].sww.js',
-                // mode: 'shared'
-              }
-            }
-          ]
-        },
-        {
+          }
+        });
+
+        rules.push({
           test: /\.jsx?$/,
           exclude: /node_modules/,
           use: {
@@ -231,8 +208,10 @@ module.exports = (p) => {
               cacheIdentifier: 'jta-base'
             }
           }
-        }
-      ]
+        });
+
+        return rules;
+      })()
     }
   };
 };
