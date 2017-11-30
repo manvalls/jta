@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 
 module.exports = (p, production, es5, port) => {
   const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
@@ -6,6 +7,7 @@ module.exports = (p, production, es5, port) => {
   const CompressionPlugin = require("compression-webpack-plugin");
   const ExtractTextPlugin = require("extract-text-webpack-plugin");
   const webpack = require('webpack');
+  const dotenv = require('dotenv');
 
   return {
     context: __dirname,
@@ -33,6 +35,37 @@ module.exports = (p, production, es5, port) => {
       }
 
       if(production) definitions['process.env.NODE_ENV'] = 'production';
+
+      const envfiles = ['.env'];
+      const configfiles = ['configuration.json'];
+
+      if(production){
+        configfiles.push('configuration.dist.json');
+        envfiles.push('dist.env');
+      }else{
+        configfiles.push('configuration.dev.json');
+        envfiles.push('dev.env');
+      }
+
+      for(const file of envfiles){
+        try{
+          const env = dotenv.parse( fs.readFileSync( path.resolve(p, file) ) );
+
+          for(const [key,value] of Object.entries(env)){
+            definitions[`process.env.${key}`] = value;
+          }
+        }catch(err){ }
+      }
+
+      for(const file of configfiles){
+        try{
+          const conf = JSON.parse( fs.readFileSync( path.resolve(p, file) ) );
+
+          for(const [key,value] of Object.entries(conf)){
+            definitions[key] = value;
+          }
+        }catch(err){ }
+      }
 
       for(const key of Object.keys(definitions)){
         definitions[key] = JSON.stringify(definitions[key]);
@@ -65,7 +98,7 @@ module.exports = (p, production, es5, port) => {
         plugins = plugins.concat([
           new webpack.HotModuleReplacementPlugin(),
           new webpack.NamedModulesPlugin()
-        ])
+        ]);
       }
 
       return plugins;
