@@ -124,6 +124,7 @@ module.exports = (p, production, es5, port) => {
               case '.less':
               case '.scss':
               case '.sass':
+              case '.html':
                 return false;
               default:
                 return true;
@@ -240,6 +241,14 @@ module.exports = (p, production, es5, port) => {
               cacheDirectory: true,
               cacheIdentifier: 'jta-base'
             }
+          }
+        });
+
+        rules.push({
+          test: /\.html$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'html-loader'
           }
         });
 
