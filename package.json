@@ -1,6 +1,6 @@
 {
   "name": "jta",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "A webpack wrapper with an opinionated configuration",
   "bin": "./bin.js",
   "main": "main.js",
